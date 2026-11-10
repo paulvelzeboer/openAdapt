@@ -1,0 +1,32 @@
+name: iOS unsigned IPA
+# Manual build of an unsigned device IPA for sideloading tools that re-sign
+# with the installer's own Apple ID (e.g. Sideloadly, AltStore).
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ipa:
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned device app
+        run: >-
+          xcodebuild -project apps/ios/OpenAdapt.xcodeproj -scheme OpenAdapt
+          -configuration Release -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+      - name: Package IPA
+        run: |
+          mkdir -p ipa/Payload
+          cp -R build/Build/Products/Release-iphoneos/OpenAdapt.app ipa/Payload/
+          (cd ipa && zip -qry ../OpenAdapt-unsigned.ipa Payload)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenAdapt-unsigned-ipa
+          path: OpenAdapt-unsigned.ipa
+          if-no-files-found: error
